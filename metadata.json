@@ -1,0 +1,7 @@
+{
+  "name": "Club de Lealtad & Recompensas",
+  "description": "Portal de clientes y club de lealtad con recompensas y pases digitales.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

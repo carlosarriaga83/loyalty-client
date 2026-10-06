@@ -1,0 +1,37 @@
+{
+  "name": "loyalty-client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "dev:lorenza": "vite --mode lorenza --host 0.0.0.0 --port 3000",
+    "build": "tsc -b && vite build",
+    "build:lorenza": "tsc -b && vite build --mode lorenza",
+    "lint": "oxlint",
+    "preview": "vite preview --host 0.0.0.0 --port 3000"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
+    "google-auth-library": "^11.0.0",
+    "html5-qrcode": "^2.3.8",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^0.469.0",
+    "passkit-generator": "^3.5.7",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.13.2",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "@vitejs/plugin-react": "^6.0.2",
+    "oxlint": "^1.69.0",
+    "pg": "^8.23.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.0"
+  }
+}
