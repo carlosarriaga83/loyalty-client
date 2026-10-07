@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
+import { clearAccessToken, getAccessToken } from './loyaltyApi';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { Login } from './components/Login';
 import { ClientDashboard } from './components/ClientDashboard';
@@ -15,38 +15,13 @@ function AppContent() {
   const { loading: storeLoading } = useStore();
 
   useEffect(() => {
-    // 1. Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        // Clear invalid/expired session token
-        supabase.auth.signOut().catch(() => {});
-        setSession(null);
-      } else {
-        setSession(session);
-      }
-      setLoading(false);
-    }).catch(() => {
-      setSession(null);
-      setLoading(false);
-    });
-
-    // 2. Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsRecoveringPassword(true);
-      }
-      setLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    setSession(getAccessToken() ? { accessToken: getAccessToken() } : null);
+    setLoading(false);
   }, []);
 
   const handleLogout = async () => {
     setLoading(true);
-    await supabase.auth.signOut();
+    clearAccessToken();
     setSession(null);
     setLoading(false);
   };
@@ -65,7 +40,7 @@ function AppContent() {
   return (
     <>
       {!session ? (
-        <Login onLoginSuccess={() => supabase.auth.getSession().then(({ data: { session } }) => setSession(session))} />
+        <Login onLoginSuccess={() => setSession({ accessToken: getAccessToken() })} />
       ) : isRecoveringPassword ? (
         <UpdatePassword onComplete={() => setIsRecoveringPassword(false)} />
       ) : (

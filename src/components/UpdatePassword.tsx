@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { apiRequest } from '../loyaltyApi';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
@@ -25,14 +25,7 @@ export const UpdatePassword: React.FC<Props> = ({ onComplete }) => {
       }
 
       toast.db('Actualizando NIP...', 'loading', 'Guardando nueva contraseña en la base de datos');
-      let securePassword = `postreland_${password}`;
-      
-      const { data, error } = await supabase.auth.updateUser({ password: securePassword });
-      if (error) throw error;
-      
-      if (data.user) {
-        await supabase.from('profiles').update({ pin: password }).eq('id', data.user.id);
-      }
+      await apiRequest('/me/pin', { method: 'PATCH', body: JSON.stringify({ pin: password }) });
 
       toast.db('NIP Actualizado', 'success', 'Tus nuevas credenciales se guardaron en la base de datos');
       onComplete();

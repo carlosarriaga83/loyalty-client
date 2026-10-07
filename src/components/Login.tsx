@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { apiRequest, authenticate } from '../loyaltyApi';
 import { User, Lock, Eye, EyeOff, Phone, Store as StoreIcon, LogIn, UserPlus, KeyRound } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { useToast } from '../context/ToastContext';
@@ -194,13 +194,10 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         }
       }
 
-      // 2. Si no se completó por el bot directo, llamar a Supabase RPC
+      // 2. Si no se completó por el bot directo, delegar al backend de lealtad.
       if (!sentSuccess) {
-        const { data, error } = await supabase.rpc('send_whatsapp_pin_recovery', { p_phone: phoneWithCountry });
-        if (error) throw error;
-        if (data === true) {
-          sentSuccess = true;
-        }
+        await apiRequest('/auth/recover-pin', { method: 'POST', body: JSON.stringify({ phone: phoneWithCountry }) });
+        sentSuccess = true;
       }
 
       if (sentSuccess) {
@@ -252,112 +249,9 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
         const cleanPhone = phone.replace(/[^0-9]/g, '');
         const phoneWithCountry = signUpCountryCode === '52' ? cleanPhone : signUpCountryCode + cleanPhone;
-        let signUpEmail = `${phoneWithCountry}@postreland.app`;
-        let securePassword = `postreland_${password.trim()}`;
-
-        const { data, error } = await supabase.auth.signUp({
-          email: signUpEmail,
-          password: securePassword,
-          options: {
-            data: {
-              full_name: t.defaultClientName || 'Cliente',
-              phone: phoneWithCountry,
-            },
-          },
-        });
-
-        if (error) {
-          const isExistingUser =
-            error.code === 'user_already_exists' ||
-            error.message?.toLowerCase().includes('already registered') ||
-            error.message?.toLowerCase().includes('already exists');
-
-          if (isExistingUser) {
-            // El usuario ya existe en el ecosistema (ej. Lorenza). Auto-login con su NIP para vincular a esta tienda.
-            const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-              email: signUpEmail,
-              password: securePassword,
-            });
-
-            if (!signInErr && signInData?.session) {
-              await supabase.from('profiles').update({ language_preference: lang }).eq('id', signInData.session.user.id);
-              toast.db(
-                lang === 'es' ? '¡Bienvenido de vuelta!' : 'Welcome back!',
-                'success',
-                lang === 'es'
-                  ? 'Tu membresía ya está activa. Te hemos vinculado con éxito a esta tienda.'
-                  : 'Your membership is already active. Successfully linked to this store.'
-              );
-              onLoginSuccess();
-              return;
-            } else {
-              setIsSignUp(false);
-              setLoginIdentifier(phone);
-              setLoginCountryCode(signUpCountryCode);
-              setPassword('');
-              setConfirmPassword('');
-              throw new Error(
-                lang === 'es'
-                  ? 'Este número ya tiene una membresía en el Club. Ingresa tu NIP de 4 dígitos para entrar.'
-                  : 'This phone number is already registered. Please enter your 4-digit PIN to sign in.'
-              );
-            }
-          }
-          throw error;
-        }
-
-        // Si signUp devolvió identidades vacías (obfuscación de Supabase para usuario existente)
-        if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
-          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-            email: signUpEmail,
-            password: securePassword,
-          });
-
-          if (!signInErr && signInData?.session) {
-            await supabase.from('profiles').update({ language_preference: lang }).eq('id', signInData.session.user.id);
-            toast.db(
-              lang === 'es' ? '¡Bienvenido de vuelta!' : 'Welcome back!',
-              'success',
-              lang === 'es'
-                ? 'Tu membresía ya está activa. Te hemos vinculado con éxito a esta tienda.'
-                : 'Your membership is already active. Successfully linked to this store.'
-            );
-            onLoginSuccess();
-            return;
-          } else {
-            setIsSignUp(false);
-            setLoginIdentifier(phone);
-            setLoginCountryCode(signUpCountryCode);
-            setPassword('');
-            setConfirmPassword('');
-            throw new Error(
-              lang === 'es'
-                ? 'Este número ya tiene una membresía en el Club. Ingresa tu NIP de 4 dígitos para entrar.'
-                : 'This phone number is already registered. Please enter your 4-digit PIN to sign in.'
-            );
-          }
-        }
-
-        if (data.session) {
-          await supabase.from('profiles').update({ language_preference: lang, pin: password, phone: phoneWithCountry }).eq('id', data.session.user.id);
-          toast.db(
-            lang === 'es' ? '¡Registro Exitoso!' : 'Registration Successful!',
-            'success',
-            lang === 'es' ? 'Cuenta creada y guardada en base de datos' : 'Account created and saved in database'
-          );
-          onLoginSuccess();
-        } else {
-          setErrorMsg(t.successMsg);
-          toast.db(
-            lang === 'es' ? '¡Cuenta Registrada!' : 'Account Registered!',
-            'success',
-            t.successMsg
-          );
-          // switch to login mode after successful signup
-          setIsSignUp(false);
-          setLoginIdentifier(phone);
-          setLoginCountryCode(signUpCountryCode);
-        }
+        await authenticate('/auth/signup', { phone: phoneWithCountry, pin: password.trim(), fullName: t.defaultClientName || 'Cliente', language: lang });
+        toast.db(lang === 'es' ? '¡Registro Exitoso!' : 'Registration Successful!', 'success', lang === 'es' ? 'Cuenta creada y guardada en la base de datos' : 'Account created and saved in the database');
+        onLoginSuccess();
       } else {
         // Sign In
         if (password.length !== 4) {
@@ -370,23 +264,10 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           lang === 'es' ? 'Autenticando credenciales en base de datos' : 'Authenticating credentials in database'
         );
 
-        let signInEmail = loginIdentifier.trim();
-        const cleanPhone = signInEmail.replace(/[^0-9]/g, '');
+        const cleanPhone = loginIdentifier.trim().replace(/[^0-9]/g, '');
         const phoneWithCountry = loginCountryCode === '52' ? cleanPhone : loginCountryCode + cleanPhone;
-        // Always reconstruct the dummy email based on phone number
-        signInEmail = `${phoneWithCountry}@postreland.app`;
-        
-        let securePassword = `postreland_${password.trim()}`;
-
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: signInEmail,
-          password: securePassword,
-        });
-
-        if (error) throw error;
-        if (data.user) {
-          await supabase.from('profiles').update({ language_preference: lang }).eq('id', data.user.id);
-        }
+        await authenticate('/auth/login', { phone: phoneWithCountry, pin: password.trim() });
+        await apiRequest('/me/profile', { method: 'PATCH', body: JSON.stringify({ language_preference: lang }) });
 
         toast.db(
           lang === 'es' ? '¡Bienvenido!' : 'Welcome!',

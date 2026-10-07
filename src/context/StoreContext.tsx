@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, DEFAULT_STORE_ID } from '../supabaseClient';
+import { DEFAULT_STORE_ID } from '../supabaseClient';
+import { apiRequest } from '../loyaltyApi';
 
 export interface Store {
   id: string;
@@ -114,10 +115,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const fetchStoresAndResolve = async () => {
     try {
-      // 1. Fetch all stores dynamically from Supabase
-      const { data, error } = await supabase.from('stores').select('*').order('name', { ascending: true });
-      if (error) throw error;
-      const stores: Store[] = data || [];
+      const { stores } = await apiRequest<{ stores: Store[] }>('/stores');
 
       if (stores.length === 0) {
         const defaultStore: Store = {
