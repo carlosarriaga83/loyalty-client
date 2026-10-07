@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { apiRequest } from '../loyaltyApi';
+import { apiRequest, getLoyaltyApiUrl } from '../loyaltyApi';
 import { useStore } from '../context/StoreContext';
 import { useToast } from '../context/ToastContext';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -376,9 +376,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({ onLogout }) =>
     if (!profile) return;
     setWalletLoadingType(type);
 
-    const url = type === 'apple'
-      ? `/api/generate-pass?userId=${profile.id}&storeId=${activeStoreId}`
-      : `/api/generate-google-pass?userId=${profile.id}&storeId=${activeStoreId}`;
+    const endpoint = type === 'apple' ? '/generate-pass' : '/generate-google-pass';
+    const url = `${getLoyaltyApiUrl()}${endpoint}?userId=${encodeURIComponent(profile.id)}&storeId=${encodeURIComponent(activeStoreId)}`;
 
     // 150ms delay allows React to paint the blur loading overlay before browser navigation starts
     setTimeout(() => {

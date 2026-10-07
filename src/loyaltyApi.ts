@@ -19,6 +19,10 @@ export function clearAccessToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+export function getLoyaltyApiUrl() {
+  return API_URL;
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
